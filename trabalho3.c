@@ -57,8 +57,11 @@ typedef struct {
     int lifes;
     game_estado estado;
     scoreboard sc_board;
+
     button *btn_array;
     int btn_array_lenght;
+    int mouse_btn_on; //Retorna o id em que está o mouse
+
     //TODO implement PPM accuracy 
 } Game;
 typedef struct {
@@ -71,14 +74,12 @@ typedef struct {
 //Funções
 int aleat_entre(int m, int M);//Gera valor aleatorio entre min e máximo
 void init_game(Game *g);//Define as varivaeis iniciais do jogo
-void file_to_score(scoreboard *sc_board);
+void handlerGame(Game *Gp);
 void draw_score();
 
 
-//Draw
-void draw_menu(button *);
 bool despedidas();
-void bfDraw(Game Gp);
+void bfDraw(Game g);
 //O jogo conta com os estaodos, menu, quit, playing e save_score
 
 //Função auxiliar desenha uma grade para ajudar a posicionar a interface na tela
@@ -108,43 +109,14 @@ int main(){
 
             lines();//Função auxiliar
         }
-
+        handlerGame(&jogo);
         bfDraw(jogo);
 
+        jogo.mouse_btn_on = iterable_f(jogo.btn_array, jogo.btn_array_lenght, mouse_on);
         //Desenha circulo central //TODO Referencia
         tela_circulo(WIDTH/2, HEIGHT/2, 50, 0, branco, azul);
         
         //Router estados do jogo
-        switch (jogo.estado) {
-            case menu: {
-                
-
-                /*input_menu input = menu_management();
-
-                //Redirect menu input for states
-                switch (input) {
-                    case input_start:{
-
-                    }break;
-                    case input_quit:{
-                        jogo.estado = quit;
-                    }break;
-                }*/
-
-            } break;
-            case play: {
-                printf("fas");
-            }break;
-            case quit:{
-                if(despedidas()){
-                    tela_fim();
-                    return 0;
-                }
-            }break;
-            case save_score:{
-            }break;
-        
-        }
 
         tela_circulo(mouse_x, mouse_y, 3, 1, rosa, rosa);
         tela_atualiza();
@@ -157,21 +129,6 @@ int aleat_entre(int m, int M)
   return rand()%(M-m+1)+m;
 }
 
-//Funções inicialização de estrutura TODO Em tese está funcionando
-void init_game(Game *g){
-    g->estado = menu;
-    g->run = true;
-
-    //Isto preenche o placar
-    g->sc_board.msg_status = malloc(2*sizeof (char) );
-    file_to_score(&(g->sc_board));//TODO Feito em tese
-
-    //Isto define os botoes do menu
-    g->btn_array_lenght = 2;
-    g->btn_array = malloc(2* sizeof(button));
-    g->btn_array[0] = init_button( WIDTH/2 -150, 400, 100, 50, "Start", 12, 1, branco, verde, preto);
-    g->btn_array[1] = init_button( WIDTH/2 +50, 400, 100, 50, "QUIT", 12, 2, branco, verde,branco);
-}
 
 //Preenche um array com uma string TODO Em tese está funcionando
 void stringtoarray(char *array, const char *string, int length ){
@@ -292,16 +249,16 @@ void draw_score(scoreboard sc_board){//FIXME Arrumar isto daqui após ler score
 }
 
 //Função que gerencia todo o draw
-void bfDraw(Game Gp) { //Gp Game pointer, not Gangplank
+void bfDraw(Game g) { //g Game pointer, not Ganglank
     
     //Desenha os bottoes na tela | Criar uma função para uma linha seria redundante
-    iterable_f(Gp.btn_array, Gp.btn_array_lenght, draw_button);
-    iterable_f(Gp.btn_array, Gp.btn_array_lenght, atoa);//Desenha uma setinha sobre o botão
+    iterable_f(g.btn_array, g.btn_array_lenght, draw_button);
+    //iterable_f(g.btn_array, g.btn_array_lenght, atoa);//Desenha uma setinha sobre o botão
     //Este switch vai aparecer diversas vezez
-    switch (Gp.estado) {
+    switch (g.estado) {
     case menu:{
         tela_texto(WIDTH/2, HEIGHT/2 - 300, 24, verde, "L1-T3-Jvrates");
-        draw_score(Gp.sc_board);
+        draw_score(g.sc_board);
 
         //TODO Adicionar Tooltip Music
     }break;
@@ -317,3 +274,36 @@ void bfDraw(Game Gp) { //Gp Game pointer, not Gangplank
     }
 }
 
+//Funções inicialização de estrutura TODO Em tese está funcionando
+void init_game(Game *g){
+    g->estado = menu;
+    g->run = true;
+
+    //Isto preenche o placar
+    g->sc_board.msg_status = malloc(2*sizeof (char) );
+    file_to_score(&(g->sc_board));//TODO Feito em tese
+
+    //Isto define os botoes do menu
+    g->btn_array_lenght = 2;
+    g->btn_array = malloc(2* sizeof(button));
+    g->btn_array[0] = init_button( WIDTH/2 -150, 400, 100, 50, "Start", 12, 1, branco, verde, preto);
+    g->btn_array[1] = init_button( WIDTH/2 +50, 400, 100, 50, "QUIT", 12, 2, branco, verde,branco);
+}
+
+
+
+void handlerGame(Game *Gp){//Game pointer, not Ganglank
+    switch (Gp->estado) {
+        case menu: {
+            if (tela_rato_clicado() && Gp->mouse_btn_on == 2) {
+                Gp->estado = quit;
+            }
+            break;
+        }
+
+        case quit:{
+            Gp->run = false;
+            break;
+        }
+    }
+}
