@@ -7,9 +7,9 @@
 
 #define WIDTH 700.0f //Largura da Tela
 #define HEIGHT 700.0f //Altura da Tela
+#define bool _Bool
+#define N_SCR 5 //Numero
 
-#define N_SCR 5 //Numero 
-// TODO DRAW INPUT HANDLER
 //Convenção nome_var nomeFunction structName struct_enumname enumname_indice  //FIXME Aplique isto
 
 //Receberão as poisções do mouse
@@ -20,12 +20,9 @@ typedef enum {
     menu,
     play,
     save_score,
-    quit
+    level,
+    quit,
 } game_estado;
-typedef enum {
-    input_start = 1,
-    input_quit = 2
-} input_menu;
 typedef enum {
     partida_pause,
     partida_level1,
@@ -35,7 +32,7 @@ typedef enum {
 } partida_estados;
 //Fim Enums
 
-//Estruturas
+//Structs
 typedef struct {
     obj fisica;
     char palavra[24];
@@ -50,87 +47,96 @@ typedef struct {
 typedef struct {
     resultado_partida scores[5];
     char *msg_status;
+    int level;
 } scoreboard;
 typedef struct {
+    bool clock;
+    double init;
+    bool reset;
+} timestamp;
+typedef struct {
+    resultado_partida result;
+    partida_estados estado;
+    obj *palavras;
+    timestamp *timers;
+}partida;
+typedef struct {
     bool run;
-    int palavra_adr;
-    int lifes;
     game_estado estado;
-    scoreboard sc_board;
-
+    scoreboard sc_board[3];
     button *btn_array;
     int btn_array_lenght;
     int mouse_btn_on; //Retorna o id em que está o mouse
-
-    //TODO implement PPM accuracy 
+    partida partida1;
 } Game;
-typedef struct {
-    bool run;
-    partida_estados estado;
-    obj *palavras;
-}partida;
 
+
+//Fim strutucts
 
 //Funções
 int aleat_entre(int m, int M);//Gera valor aleatorio entre min e máximo
 void init_game(Game *g);//Define as varivaeis iniciais do jogo
 void handlerGame(Game *Gp);
-void draw_score();
+void verTimestamp(timestamp *t, double standby);
+void initTimestamp(timestamp * t);
+//void drawScore(); TODO Quem sabe remover
 
 
 bool despedidas();
-void bfDraw(Game g);
-//O jogo conta com os estaodos, menu, quit, playing e save_score
+void bfDraw(Game );
+//O jogo conta com os estados, menu, quit, play e save_score
 
+
+//TESTES
 //Função auxiliar desenha uma grade para ajudar a posicionar a interface na tela
 void lines();
 
+//FIM TESTES
 int main(){
+
+
     srand(2);
-    
+
     //Inicia a tela
-    tela_inicio(WIDTH, HEIGHT, "Meu sistema não tem titlebar");
-    
+    tela_inicio(WIDTH, HEIGHT, "l1_t3_Jvrates");
+
     //Cria a estrutura do jogo e define seus valores iniciais
     Game jogo;
     init_game(&jogo);
 
-    //Variavel que armazenará a partida
     //partida partida_var;
-
     //Laço principal
+
     while (jogo.run) {
+        printf("%i\n", jogo.estado);
 
         //Posições do mouse gravadas somente uma vez por loop
         mouse_x = tela_rato_x();
         mouse_y = tela_rato_y();
+/*
 
         if(tela_rato_apertado()){
-
             lines();//Função auxiliar
         }
+
+*/
+        //Desenha circulo central
+        tela_circulo(WIDTH/2, HEIGHT/2, 50, 0, branco, azul);
+
         handlerGame(&jogo);
         bfDraw(jogo);
 
         jogo.mouse_btn_on = iterable_f(jogo.btn_array, jogo.btn_array_lenght, mouse_on);
-        //Desenha circulo central //TODO Referencia
-        tela_circulo(WIDTH/2, HEIGHT/2, 50, 0, branco, azul);
-        
-        //Router estados do jogo
 
+
+        //Desenha o mouse
         tela_circulo(mouse_x, mouse_y, 3, 1, rosa, rosa);
         tela_atualiza();
     }
     return 0;
 }
 
-int aleat_entre(int m, int M)
-{
-  return rand()%(M-m+1)+m;
-}
 
-
-//Preenche um array com uma string TODO Em tese está funcionando
 void stringtoarray(char *array, const char *string, int length ){
     for(int i = 0; i < length; i++){
         array[i] = string[i];
@@ -140,8 +146,8 @@ void stringtoarray(char *array, const char *string, int length ){
 
 //Preenche a scoreboard, e insere uma mensagemm status para a operação;
 //TODO Em tese está funcionando
-void file_to_score(scoreboard *sc_board){
-    //Isto limpa a varivavel que armazena os nomes score e a status msg
+void file_to_score(scoreboard *sc_board, char *filename){
+    //Isto limpa a varivavel que armazena os nomes score_lvl1 e a status msg
     //Isto será usado em drawScore
     for(int i = 0; i < N_SCR; i++){
         sc_board->scores[i].nome[0] = '\0';
@@ -150,7 +156,7 @@ void file_to_score(scoreboard *sc_board){
 
     //Iste trecho preeenche os valores da scoreboard
     FILE *file;
-    file = fopen("score", "r");
+    file = fopen(filename, "r");
 
 
     if(file == NULL){
@@ -176,7 +182,6 @@ void file_to_score(scoreboard *sc_board){
             }
 
         }while(!feof(file) && verifica == 4 && y!=5);
-
         if(verifica != 4){
             free(sc_board->msg_status);
             sc_board->msg_status = malloc(30*sizeof (char));
@@ -190,35 +195,22 @@ bool despedidas(){
     return true;
 }//FIXME implement
 
-input_menu menu_management(){
-    tela_texto(WIDTH/2, 100, 12, verde, "l1-t3-jvbrates");
-    button btn_menu[2] = {
-    init_button((WIDTH/2)-50, 300, 100, 50, "Start", 12, 1, branco, verde, preto),
-    init_button((WIDTH/2)-50, 400, 100, 50, "QUIT", 12, 2, branco, verde,branco),
-    };
 
-    
-    iterable_fp(btn_menu, 2, click_hold);//Efeito de botão apertado
-    int t = iterable_f(btn_menu, 3, mouse_on);//Retorna o id do botão caso mouse esteja em cima
-                    
-    if(t){//FIXME transforma em função
-        tela_texto_esq(btn_menu[t-1].pos_x-10, btn_menu[t-1].pos_y, btn_menu[t-1].y, btn_menu[t-1].cor_fundo, ">");
-    }
+void initTimestamp(timestamp * t){
+    if(!(t->reset)) {
 
-    if(tela_rato_clicado()){
-        switch (t) {
-        case 1:
-            return input_start;
-        break;
-        case 2:
-            return input_quit;
-        break;
-        }
+        t->clock = false;
+        t->init = relogio();
+        t->reset = !(t->reset);
     }
-    draw_score();
-    iterable_f(btn_menu, 2, draw_button);//Desenha os botoes
-    return 0;
 }
+void verTimestamp(timestamp *t, double standby){
+    if(relogio()-t->init > standby){
+        t->clock = true;
+
+    }
+}
+
 
 //AUX //TODO REMOVA
 void lines(){
@@ -228,50 +220,80 @@ void lines(){
     }
 }
 
-void draw_score(scoreboard sc_board){//FIXME Arrumar isto daqui após ler score
+void drawScore(scoreboard sc_board, double x, double y_, char *title){//TODO corrigir nome variavel
     int y = 0;
-    tela_texto(HEIGHT/2, 190, 10, verde, "SCOREBOARD");
+    tela_texto(x, y_, 10, verde, title);
     for(; y<5; y++){
         if(sc_board.scores[y].nome[0] == '\0'){
             break;
         } else{
             char text[1500];
-            sprintf(text, "%i. %3s  %2.2f %2.2f %2.2f",y+1, sc_board.scores[y].nome, sc_board.scores[y].score, sc_board.scores[y].accuracy, sc_board.scores[y].ppm);
-            tela_texto(HEIGHT/2, 205.0f+(20.0f*(float)y+1), 10, verde, text);
+            sprintf(text, "%i.%3s %2.2f %2.2f %2.2f",y+1, sc_board.scores[y].nome, sc_board.scores[y].score, sc_board.scores[y].accuracy, sc_board.scores[y].ppm);
+            tela_texto(x, y_+15+(20.0f*(float)y+1), 10, verde, text);
         }
     }
-    y++;
+
     if(sc_board.msg_status[0] != '\0'){
-        tela_texto(HEIGHT/2, 205.0f+(20.0f*(float)y+1), 10, verde, sc_board.msg_status);
+        tela_texto(x, y_+15+(20.0f*(float)y+1), 10, verde, sc_board.msg_status);
         y++;
     }
-    tela_retangulo(HEIGHT / 2 - 140, 180, 490, 205.0f+(20.0f*(float)y+1), 3, verde, transparente);
+    tela_retangulo(x - 125, y_-10, x+125, y_+15+(20.0f*(float)y+1), 3, verde, transparente);
 }
 
+void drawPlay(partida p){
+
+
+
+};
+
 //Função que gerencia todo o draw
-void bfDraw(Game g) { //g Game pointer, not Ganglank
+void bfDraw(Game g) {
     
-    //Desenha os bottoes na tela | Criar uma função para uma linha seria redundante
+
     iterable_f(g.btn_array, g.btn_array_lenght, draw_button);
-    //iterable_f(g.btn_array, g.btn_array_lenght, atoa);//Desenha uma setinha sobre o botão
-    //Este switch vai aparecer diversas vezez
+
     switch (g.estado) {
     case menu:{
         tela_texto(WIDTH/2, HEIGHT/2 - 300, 24, verde, "L1-T3-Jvrates");
-        draw_score(g.sc_board);
+        drawScore(g.sc_board[0], HEIGHT/2    , 200, "SCOREBOARD LVL 1");
+        drawScore(g.sc_board[1], HEIGHT/2 - 200    , 340, "SCOREBOARD LVL 2");
+        drawScore(g.sc_board[2], HEIGHT/2 + 200    , 340, "SCOREBOARD LVL 3");
+        //drawScore(g.sc_board[0], HEIGHT/2+130    , 190, "SCOREBOARD");
 
         //TODO Adicionar Tooltip Music
     }break;
     case play:{
-
-    }break;
-    case quit:{
-        despedidas();
+        drawPlay(g.partida1);
     }break;
     case save_score:{
 
     }break;
+    case level:{
+        tela_texto(WIDTH/2, HEIGHT/2 - 300, 24, verde, "Select level");
+        break;
     }
+    case quit:{
+        despedidas();
+    }break;
+    }
+}
+
+//Configura os botoes
+void setBtnLevel(Game *Gp){
+    free(Gp->btn_array);
+    Gp->btn_array = malloc(4* sizeof(button));
+    Gp->btn_array_lenght = 4;
+    Gp->btn_array[0] = init_button( WIDTH/2 - 52, 200, 104, 50, "Level 1", 12, 1, verde, verde, preto);
+    Gp->btn_array[1] = init_button( WIDTH/2 - 52, 300, 104, 50, "Level 2", 12, 2, amarelo, amarelo, preto);
+    Gp->btn_array[2] = init_button( WIDTH/2 - 52, 400, 104, 50, "Level 3", 12, 3, vermelho, vermelho, preto);
+    Gp->btn_array[3] = init_button( 48, 600, 104, 50, "Voltar", 12, -1, verde, verde, preto);
+}
+void setBtnMenu(Game *Gp) {
+    free(Gp->btn_array);
+    Gp->btn_array = malloc(2 * sizeof(button));
+    Gp->btn_array_lenght = 2;
+    Gp->btn_array[0] = init_button(WIDTH / 2 - 250, 500, 100, 50, "Start", 12, 3, branco, verde, preto);
+    Gp->btn_array[1] = init_button(WIDTH / 2 + 150, 500, 100, 50, "QUIT", 12, 4, branco, verde, branco);
 }
 
 //Funções inicialização de estrutura TODO Em tese está funcionando
@@ -280,30 +302,85 @@ void init_game(Game *g){
     g->run = true;
 
     //Isto preenche o placar
-    g->sc_board.msg_status = malloc(2*sizeof (char) );
-    file_to_score(&(g->sc_board));//TODO Feito em tese
+    //Lvl1
+    g->sc_board[0].msg_status = malloc(2*sizeof (char) );
+    file_to_score(&(g->sc_board[0]), "score_lvl1");//TODO Feito em tese
+    //Lvl2
+    g->sc_board[1].msg_status = malloc(2*sizeof (char) );
+    file_to_score(&(g->sc_board[1]), "score_lvl2");//TODO Feito em tese
+    //Lvl3
+    g->sc_board[2].msg_status = malloc(2*sizeof (char) );
+    file_to_score(&(g->sc_board[2]), "score_lvl3");//TODO Feito em tese
 
     //Isto define os botoes do menu
-    g->btn_array_lenght = 2;
-    g->btn_array = malloc(2* sizeof(button));
-    g->btn_array[0] = init_button( WIDTH/2 -150, 400, 100, 50, "Start", 12, 1, branco, verde, preto);
-    g->btn_array[1] = init_button( WIDTH/2 +50, 400, 100, 50, "QUIT", 12, 2, branco, verde,branco);
+    setBtnMenu(g);
+
 }
+void initPartida(partida*p){//Zera os valores da variavel partida//TODO revisar
+    p->result.nome[0] = '\0';
+    p->result.accuracy = 0.0;
+    p->result.ppm = 0.0;
+}
+void handlerPlay(partida *p){
+    /*
+            * verTimestamp(&tm, 5);
 
+           if(tm.clock == true){
 
+               tm.init = relogio();
+               printf("%.3lf\n", relogio()-tm.init);
+               tm.clock = false;
+           }
+           */
+};
 
 void handlerGame(Game *Gp){//Game pointer, not Ganglank
     switch (Gp->estado) {
         case menu: {
-            if (tela_rato_clicado() && Gp->mouse_btn_on == 2) {
-                Gp->estado = quit;
+            if (tela_rato_clicado()) {
+                Gp->estado = Gp->mouse_btn_on;
+            }
+
+            //Define os novos botoes para selecionar o level
+            if(Gp->estado == level){
+                setBtnLevel(Gp);
             }
             break;
         }
+        case play: {
+            handlerPlay(&Gp->partida1);
 
+            if(Gp->partida1.result.nome[0] != '\0'){
+                Gp->estado = save_score;
+            }
+
+            break;
+        }
+        case save_score: {
+            break;}
+        case level: {
+            if(tela_rato_clicado()){
+                if(Gp->mouse_btn_on < 0){
+                    Gp->estado = menu;
+                    setBtnMenu(Gp);
+                } else if(Gp->mouse_btn_on > 0){
+
+                    Gp->estado = play;
+
+                    free(Gp->btn_array);
+                    Gp->btn_array_lenght = 0;
+                    Gp->partida1.estado = Gp->mouse_btn_on;
+
+                    initPartida(&Gp->partida1);
+                }
+            }
+            break;}
         case quit:{
             Gp->run = false;
             break;
         }
+
+
     }
 }
+

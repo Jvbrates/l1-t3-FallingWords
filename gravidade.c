@@ -30,6 +30,7 @@ void grav_test(obj *o1, obj * o2);
 void atualiza_obj(obj *o);
 void print_obj(obj o, int x, int y);
 // A função principal
+/*
 int main(void)
 {
 
@@ -109,6 +110,7 @@ int main(void)
   return 0;
 }
 
+*/
 
 // funções auxiliares
 // -------------------
@@ -122,6 +124,12 @@ void atualiza_obj(obj *o){
     
     o->posicao.x += o->velocidade.x;
     o->posicao.y += o->velocidade.y;
+}
+
+float aleat_entre(int m, int M)
+{
+
+    return (rand()%(M-m+1)+m); //TODO Modifique para usar float .2f
 }
 
 
@@ -157,7 +165,6 @@ void print_obj(obj o, int x, int y){
   tela_texto_dir(x, y+100, 18, verde, c);
 }
 
-
 void grav_test(obj *o1, obj * o2){
   double constG = 6.6;
 
@@ -170,3 +177,20 @@ void grav_test(obj *o1, obj * o2){
   o1->aceleracao.x += (cos*constG*pm/pd)/o1->massa;
   o1->aceleracao.y += (sen*constG*pm/pd)/o1->massa;
 };
+
+vetor aleat_radius(int width, int height, float radius){ //Retorna um vetor com posições aleatorias dentro de um raio a partir do centro
+
+    vetor obj = {aleat_entre(0, width), aleat_entre(0, height)};
+
+    vetor centro = {height/2, width/2};
+
+    double d = dist(obj, centro);
+
+    double q = radius/d;
+    printf("Q: %.2f\n", q);
+
+    return (vetor){centro.x+(obj.x-width/2)*q,
+                   centro.y+(obj.y-height/2)*q};
+
+
+}

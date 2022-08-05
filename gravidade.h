@@ -1,5 +1,5 @@
-#ifndef _gravity_
-#define _gravity_
+#ifndef _gravidade_
+#define _gravidade_
 
 typedef struct{
     double x;
@@ -13,5 +13,5 @@ typedef struct {
     double massa;
 } obj;
 
-
+vetor aleat_radius(int width, int height, float radius);
 #endif

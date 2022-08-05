@@ -1,3 +1,0 @@
-/home/jvbrates/Scripts/Lab1C/l122a/l1-t3-Jvrates/cmake-build-debug/CMakeFiles/l1_t3_Jvrates.dir
-/home/jvbrates/Scripts/Lab1C/l122a/l1-t3-Jvrates/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/jvbrates/Scripts/Lab1C/l122a/l1-t3-Jvrates/cmake-build-debug/CMakeFiles/rebuild_cache.dir

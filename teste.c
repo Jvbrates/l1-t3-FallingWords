@@ -3,7 +3,7 @@
 //
 
 void file_to_score(scoreboard *sc_board){
-    //Limpa a varivavel que armazena os nomes score e a status msg
+    //Limpa a varivavel que armazena os nomes score_lvl1 e a status msg
     //Isto será usado em drawScore
 
     for(int i = 0; i < N_SCR; i++){
@@ -12,12 +12,12 @@ void file_to_score(scoreboard *sc_board){
     sc_board->msg_status[0] = '\0';
 
     FILE *file;
-    file = fopen("score", "r");
+    file = fopen("score_lvl1", "r");
 
 
     if(file == NULL){
         realloc(sc_board->msg_status, 21*sizeof (char));
-        stringtoarray(sc_board->msg_status, "score file not found", 20);
+        stringtoarray(sc_board->msg_status, "score_lvl1 file not found", 20);
     } else {
         int verifica, y = 0;
 
@@ -38,7 +38,7 @@ void file_to_score(scoreboard *sc_board){
 
         if(verifica != 4){
             realloc(sc_board->msg_status, 26*sizeof (char));
-            stringtoarray(sc_board->msg_status, "Syntax error in score file", 20);
+            stringtoarray(sc_board->msg_status, "Syntax error in score_lvl1 file", 20);
         }
     }
 
