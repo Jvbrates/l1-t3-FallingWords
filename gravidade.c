@@ -1,18 +1,3 @@
-// Programa de exemplo de uso de tela.h e tela.c
-//
-// Necessita os arquivos exemplo3.c (este), tela.h, tela.c e DejaVuSans.ttf
-// Necessita ter instalado a biblioteca allegro5
-//
-// para compilar este programa manualmente em linux:
-// gcc -Wall -o exemplo3 exemplo3.c tela.c -lallegro_font -lallegro_color -lallegro_ttf -lallegro_primitives -lallegro
-//
-
-// Este exemplo é um programa de colorir círculos na tela.
-// Existem dois conjuntos de círculos desenhados na tela:
-// - um fixo no topo da tela, que serve para escolher cores
-// - um móvel, que podem ser coloridos
-// Clicando em um dos círculos de cores se seleciona a cor corrente
-// Clicando em um dos círculos móveis se altera a cor do círculo
 
 #include "tela.h"
 
@@ -187,7 +172,6 @@ vetor aleat_radius(int width, int height, float radius){ //Retorna um vetor com 
     double d = dist(obj, centro);
 
     double q = radius/d;
-    printf("Q: %.2f\n", q);
 
     return (vetor){centro.x+(obj.x-width/2)*q,
                    centro.y+(obj.y-height/2)*q};

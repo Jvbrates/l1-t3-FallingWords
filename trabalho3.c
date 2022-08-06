@@ -25,18 +25,22 @@ typedef enum {
 } game_estado;
 typedef enum {
     partida_pause,
-    partida_level1,
-    partida_level2,
-    partida_level3,
-    partida_gameOver
+    playing,
+    partida_gameOver,
+    load,
 } partida_estados;
+typedef enum {
+    sleep,
+    active,
+    dead
+} palavra_estado;
 //Fim Enums
 
 //Structs
 typedef struct {
     obj fisica;
     char palavra[24];
-    int lifes;
+    palavra_estado estado;
 } palavra;
 typedef struct {
     char nome[10];
@@ -57,8 +61,10 @@ typedef struct {
 typedef struct {
     resultado_partida result;
     partida_estados estado;
-    obj *palavras;
+    palavra *palavras;
     timestamp *timers;
+    int grau;
+    int nivel;
 }partida;
 typedef struct {
     bool run;
@@ -104,22 +110,14 @@ int main(){
     Game jogo;
     init_game(&jogo);
 
-    //partida partida_var;
-    //Laço principal
 
     while (jogo.run) {
-        printf("%i\n", jogo.estado);
+        printf("%i -- %i\n", jogo.estado, jogo.partida1.estado);
 
         //Posições do mouse gravadas somente uma vez por loop
         mouse_x = tela_rato_x();
         mouse_y = tela_rato_y();
-/*
 
-        if(tela_rato_apertado()){
-            lines();//Função auxiliar
-        }
-
-*/
         //Desenha circulo central
         tela_circulo(WIDTH/2, HEIGHT/2, 50, 0, branco, azul);
 
@@ -127,7 +125,6 @@ int main(){
         bfDraw(jogo);
 
         jogo.mouse_btn_on = iterable_f(jogo.btn_array, jogo.btn_array_lenght, mouse_on);
-
 
         //Desenha o mouse
         tela_circulo(mouse_x, mouse_y, 3, 1, rosa, rosa);
@@ -240,10 +237,20 @@ void drawScore(scoreboard sc_board, double x, double y_, char *title){//TODO cor
     tela_retangulo(x - 125, y_-10, x+125, y_+15+(20.0f*(float)y+1), 3, verde, transparente);
 }
 
+void drawPalavra(palavra pal){
+    if(pal.estado == active){
+        tela_texto(pal.fisica.posicao.x, pal.fisica.posicao.y-10, 14, branco, pal.palavra);
+        tela_circulo(pal.fisica.posicao.x, pal.fisica.posicao.y, 5, 1, verde, verde);
+    }
+}
 void drawPlay(partida p){
+    if(p.grau != 0){
+        for (int i = 0; i < 7; ++i) {
 
-
-
+            //printf("%s\n",p.palavras[0].palavra);
+            drawPalavra(p.palavras[i]);
+        };
+    }
 };
 
 //Função que gerencia todo o draw
@@ -263,7 +270,10 @@ void bfDraw(Game g) {
         //TODO Adicionar Tooltip Music
     }break;
     case play:{
-        drawPlay(g.partida1);
+
+        printf("AA");
+        if(g.partida1.estado == playing){printf("%lf\n", g.partida1.palavras[4].fisica.posicao.x);
+            drawPlay(g.partida1);}
     }break;
     case save_score:{
 
@@ -320,18 +330,112 @@ void initPartida(partida*p){//Zera os valores da variavel partida//TODO revisar
     p->result.nome[0] = '\0';
     p->result.accuracy = 0.0;
     p->result.ppm = 0.0;
+    printf("Antes");
+    p->timers = malloc(5*sizeof(timestamp));
+    printf("Depois");
+    p->grau = 1;
 }
+
+//TODO em tese funciona Retorna uma palavra aleatoria
+void aleatPalavra(char *pal, int nivel){
+    int x;
+    switch (nivel) {
+        case 1: {
+            x = aleat_entre(0, 93);
+            break;
+        }
+        case 2: {
+            x = aleat_entre(0, 30051);
+            break;
+        }
+        case 3: {
+            x = aleat_entre(0, 245365);
+            break;
+        }
+        //Só para parar de aparecer warnings
+    }
+    printf("X:%i", x);
+    FILE *file;
+    if(x <= 93) {
+        file = fopen("npal-al.txt", "r");
+        fseek(file, x*24, SEEK_SET);
+        fscanf(file, "%s", pal);
+        printf("==>%s", pal);
+    } else if (x <= 30051){
+        file = fopen("npal-qp.txt", "r");
+        fseek(file, SEEK_SET, (x-94)*24);
+        fscanf(file, "%s", pal);
+    } else{
+        file = fopen("npal-zm.txt", "r");
+        fseek(file, SEEK_SET, (x-30052)*24);
+        fscanf(file, "%s", pal);
+    }
+    fclose(file);
+
+
+}
+
+//TODO em tese está funcionando Cria o vetor de palavras;
+
+//Um ponteiro para um ponteiro
+void loadPalavras(palavra **pa, int  grau, int nivel){
+    int quantidade = 2;
+    printf("Pelo amor de deus");
+    switch (grau) {
+        case 1:{
+            quantidade = 7;
+
+            break;
+        }
+        case 2: {
+            quantidade = 10;
+            break;
+        }
+        case 3:{
+            quantidade = 20;
+            break;
+        }
+    }
+
+    palavra *pal  = malloc(quantidade*sizeof(palavra));
+
+    for (int i = 0; i < quantidade; ++i) {
+        aleatPalavra(pal[i].palavra, nivel);
+
+        //Uma posição aleatoria no raio de 200 do centro
+        pal[i].fisica.posicao = aleat_radius(WIDTH, HEIGHT, 200);
+
+        //Estado inicial , ainda não afeta o game
+        pal[i].estado = active; //TODO AQUI
+        pal[i].fisica.massa = 10.0;//Implementações físicas
+
+        //Velocidade inicial || Aleatoriedade
+        pal[i].fisica.velocidade.x = aleat_entre(0,20)/10;
+        pal[i].fisica.velocidade.y = aleat_entre(0,20)/10;
+        printf("||%p", pal);
+
+    }
+    *pa = pal;
+};
 void handlerPlay(partida *p){
-    /*
-            * verTimestamp(&tm, 5);
 
-           if(tm.clock == true){
+    switch (p->estado) {
 
-               tm.init = relogio();
-               printf("%.3lf\n", relogio()-tm.init);
-               tm.clock = false;
-           }
-           */
+        case partida_pause:{
+            tela_texto(23,23,23,branco,"AAAAA");
+        break;}
+        case playing: {
+            break;}
+        case load: {
+                loadPalavras(&(p->palavras), p->grau, p->nivel);
+                p->estado = playing;
+            break;}
+        case partida_gameOver:{
+                break;
+        }
+
+    }
+
 };
 
 void handlerGame(Game *Gp){//Game pointer, not Ganglank
@@ -348,28 +452,30 @@ void handlerGame(Game *Gp){//Game pointer, not Ganglank
             break;
         }
         case play: {
-            handlerPlay(&Gp->partida1);
 
-            if(Gp->partida1.result.nome[0] != '\0'){
+            handlerPlay(&Gp->partida1);
+            if(Gp->partida1.result.nome[0] != '\0'){//Servirá como indicador de estar funcionando
                 Gp->estado = save_score;
             }
 
-            break;
-        }
+        break;}
         case save_score: {
             break;}
         case level: {
+
             if(tela_rato_clicado()){
+
                 if(Gp->mouse_btn_on < 0){
                     Gp->estado = menu;
                     setBtnMenu(Gp);
-                } else if(Gp->mouse_btn_on > 0){
-
+                }
+                else if(Gp->mouse_btn_on > 0){
                     Gp->estado = play;
 
                     free(Gp->btn_array);
                     Gp->btn_array_lenght = 0;
-                    Gp->partida1.estado = Gp->mouse_btn_on;
+                    Gp->partida1.nivel = Gp->mouse_btn_on;
+                    Gp->partida1.estado = load;
 
                     initPartida(&Gp->partida1);
                 }
@@ -379,8 +485,6 @@ void handlerGame(Game *Gp){//Game pointer, not Ganglank
             Gp->run = false;
             break;
         }
-
-
     }
 }
 
