@@ -13,5 +13,8 @@ typedef struct {
     double massa;
 } obj;
 
+
 vetor aleat_radius(int width, int height, float radius);
+void grav_test(obj *o1, obj o2);
+void atualiza_obj(obj *o);
 #endif

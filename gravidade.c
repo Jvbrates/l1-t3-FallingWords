@@ -1,6 +1,5 @@
 
 #include "tela.h"
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -11,8 +10,7 @@
 #include "gravidade.h"
 
 
-void grav_test(obj *o1, obj * o2);
-void atualiza_obj(obj *o);
+
 void print_obj(obj o, int x, int y);
 // A função principal
 /*
@@ -101,11 +99,11 @@ int main(void)
 // -------------------
 //
 void atualiza_obj(obj *o){
-    if(o->velocidade.x + o->aceleracao.x < 10 && o->velocidade.x + o->aceleracao.x > -10){o->velocidade.x += o->aceleracao.x;}
-    if(o->velocidade.y + o->aceleracao.y < 10  && o->velocidade.y + o->aceleracao.y > -10){o->velocidade.y += o->aceleracao.y;}
+    //if(o->velocidade.x + o->aceleracao.x < 10 && o->velocidade.x + o->aceleracao.x > -10){o->velocidade.x += o->aceleracao.x;}
+    //if(o->velocidade.y + o->aceleracao.y < 10  && o->velocidade.y + o->aceleracao.y > -10){o->velocidade.y += o->aceleracao.y;}
     
-    //o->velocidade.y += o->aceleracao.y;
-    //o->velocidade.y += o->aceleracao.y;
+    o->velocidade.y += o->aceleracao.y;
+    o->velocidade.x += o->aceleracao.x;
     
     o->posicao.x += o->velocidade.x;
     o->posicao.y += o->velocidade.y;
@@ -150,15 +148,15 @@ void print_obj(obj o, int x, int y){
   tela_texto_dir(x, y+100, 18, verde, c);
 }
 
-void grav_test(obj *o1, obj * o2){
+void grav_test(obj *o1, obj o2){
   double constG = 6.6;
 
-  double cos = ((o2->posicao.x-o1->posicao.x)/dist(o1->posicao, o2->posicao));
-  double sen = ((o2->posicao.y-o1->posicao.y)/dist(o1->posicao, o2->posicao));
+  double cos = ((o2.posicao.x-o1->posicao.x)/dist(o1->posicao, o2.posicao));
+  double sen = ((o2.posicao.y-o1->posicao.y)/dist(o1->posicao, o2.posicao));
 
-  double pm = o1->massa*o2->massa;
-  double pd = pow(dist(o1->posicao, o2->posicao),2);
-  printf("%lf|%lf-", o2->posicao.x-o1->posicao.x, cos);
+  double pm = o1->massa*o2.massa;
+  double pd = pow(dist(o1->posicao, o2.posicao),2);
+  //printf("%lf|%lf-", o2.posicao.x-o1->posicao.x, cos);
   o1->aceleracao.x += (cos*constG*pm/pd)/o1->massa;
   o1->aceleracao.y += (sen*constG*pm/pd)/o1->massa;
 };
