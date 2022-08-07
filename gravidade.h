@@ -1,3 +1,4 @@
+//João Vitor Belmonte Rates
 #ifndef _gravidade_
 #define _gravidade_
 
@@ -18,4 +19,5 @@ vetor aleat_radius(int width, int height, float radius);
 void grav_test(obj *o1, obj o2);
 void atualiza_obj(obj *o, int vmax);
 double dist(vetor v1,vetor v2);
+int aleat_entre(int m, int M);
 #endif

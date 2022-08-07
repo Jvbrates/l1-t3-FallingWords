@@ -1,6 +1,7 @@
+//João Vitor Belmonte Rates
 #include "tela.h"
 #include "buttons.h"
-#include <stdio.h>
+
 extern float mouse_x, mouse_y;
 
 //Execuuta a função sobre todos os itens
@@ -30,7 +31,7 @@ int iterable_fp(button btn[], int length, int (*f)(button *)){
     return r;
 }
 
-//Cribtn e retorna um button;
+//Cria btn e retorna um button;
 button init_button(int pos_x, int pos_y, int x, int y, char *texto, int lt, int id, int cor_borda, int cor_fundo, int cor_texto){
     button btn;
     btn.pos_x = pos_x;
@@ -86,15 +87,6 @@ int mouse_on(button btn){
     if(mouse_x>btn.pos_x && mouse_y>btn.pos_y && mouse_x<btn.pos_x+btn.x && mouse_y<btn.pos_y+btn.y){
         return btn.id;
         tela_texto_dir(btn.pos_x-10, btn.pos_y+10, btn.lt, btn.cor_texto, ">>>");
-    }
-    return 0;
-}
-
-//Atoa, desenha uma seta ">" quando o mouse está acima do botao
-int atoa(button btn){
-    if(mouse_x>btn.pos_x && mouse_y>btn.pos_y && mouse_x<btn.pos_x+btn.x && mouse_y<btn.pos_y+btn.y){
-        tela_texto_esq(btn.pos_x-10, btn.pos_y, btn.y, btn.cor_fundo, ">");
-        return 0;
     }
     return 0;
 }

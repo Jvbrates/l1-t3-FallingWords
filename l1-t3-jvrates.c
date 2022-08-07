@@ -1,21 +1,22 @@
+//João Vitor Belmonte Rates
 #include <time.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "tela.h"
-#include "gravidade.h"
+#include "gravidade.h"//usa math
 #include "buttons.h"
 
 #define WIDTH 700.0f //Largura da Tela
 #define HEIGHT 700.0f //Altura da Tela
 #define bool _Bool
-#define N_SCR 5 //Numero
+#define N_SCR 5 //Numero de melhores pontuações gravadas
 
-//Convenção nome_var nomeFunction structName struct_enumname enumname_indice  //FIXME Aplique isto
+//Convenção nome_var nomeFunction structName struct_enumname enumname_indice  //FIXME Aplique isto depois
 
 //Receberão as poisções do mouse
 float mouse_x, mouse_y;
-char tecla, tecla_buffer, tst;//
+char tecla, tecla_buffer, tst;//Para evitar que uma tecla seja lida várias vezes em uma "teclada"
 
 //Enums -- Contribuem para legibilidade do código
 typedef enum {
@@ -48,8 +49,8 @@ typedef struct {
     char nome[10];
     float score;
     float ppm;
-    float accuracy;
-}resultado_partida;
+    float err;
+} resultado_partida;
 typedef struct {
     resultado_partida scores[5];
     int level;//TODO Estou usando?
@@ -58,7 +59,7 @@ typedef struct {
     bool clock;//Usado na função verTimestamp após x instervalo de tempo o clock é ativado
     double init;
     bool reset;
-} timestamp;
+} timestamp;//Usado para tempos
 typedef struct {
     int grau, nivel, ip, set_p, n_p;//Grau, nivel, indice palavras, setted_palavra, numero de palavras
     int typ, w_typ;//Types and Wrong types
@@ -67,7 +68,7 @@ typedef struct {
     partida_estados estado;
     palavra *palavras;
     timestamp *timers;
-}partida;
+} partida;
 typedef struct {
     bool run;
     game_estado estado;
@@ -80,15 +81,19 @@ typedef struct {
 
 
 //Funções
-int aleat_entre(int m, int M);//Gera valor aleatorio entre min e máximo
 void init_game(Game * g);//Define as varivaeis iniciais do jogo
 void handlerGame(Game * Gp);
-void verTimestamp(timestamp * t, double standby);
-void initTimestamp(timestamp * t);
+
+//Explicação normalizapal()
+/*Na primeira que vez que o programa for executado ele buscará pelos arquvios de palavras com nome npal..
+quando não encontrar ele vai criar os arquivos, são semelhantes aos arquivos pal normais com a diferença
+ de que todas as linhas tem o mesmo numero de bytes, por exemplo a linha que continha "a" contem "a        ",
+ assim, sabendo o numero de bytes de cada linha, o programa usa o comando fseek para mover o ponteiro e
+ selecionar a palavra escolhida aleatoriamente, fiz isto porque julguei ser mais eficiênte que usar vários
+ fscanf*/
 void normalizapal(char *f1, char *f2);
 
 
-bool despedidas();
 void bfDraw(Game );
 //O jogo conta com os estados, menu, quit, play e save_score
 
@@ -99,6 +104,11 @@ obj centro = {
     2000
 };
 
+//Indice timers(timestamps)
+//0 -- Periodicamente ativa uma palavra da lista em espera.
+//1 -- É ativado após alguns segundos (útil em tela de "prepare-se" e impedir que uma letra seja digitada sem querer ao entrar em um estado).
+//2 -- Alternando clock entre true e false em um ciclo __/¨¨\__/¨¨\__,
+//3 -- Cronometra o tempo de partida
 
 
 int main(){
@@ -153,7 +163,7 @@ int main(){
     return 0;
 }
 
-
+//Preenche um array como uma string char1 = char2
 void stringtoarray(char *array, const char *string, int length ){
     for(int i = 0; i < length; i++){
         array[i] = string[i];
@@ -161,7 +171,7 @@ void stringtoarray(char *array, const char *string, int length ){
     array[length] = '\0';
 }
 
-//Preenche a scoreboard, e insere uma mensagemm status para a operação;
+//Recupera a pontuação contida no arquivo, caso ele exista
 void file_to_score(scoreboard *sc_board, char *filename){
     //Isto limpa a varivavel que armazena os nomes score_lvl1 e a status msg
     //Isto será usado em drawScore
@@ -183,11 +193,11 @@ void file_to_score(scoreboard *sc_board, char *filename){
         char nome[500];//Precisa ser grande, par ao caso de não haver nome, o numero de palavras por minutos tenta ser armazenado no char, se ele for muito pequeno ocorre um erro de overflow
 
         do{
-            float ppm, pontos, accuracy;
-            verifica = fscanf(file, "%s |%f|%f|%f",nome, &pontos, &ppm, &accuracy);
+            float ppm, pontos, err;
+            verifica = fscanf(file, "%s |%f|%f|%f",nome, &ppm, &err, &pontos);
             if(verifica == 4){
                 stringtoarray(sc_board->scores[y].nome, nome, 3);
-                sc_board->scores[y].accuracy = accuracy;
+                sc_board->scores[y].err = err;
                 sc_board->scores[y].score = pontos;
                 sc_board->scores[y].ppm = ppm;
                 y++;//Conta o numero de scores registrados
@@ -200,17 +210,15 @@ void file_to_score(scoreboard *sc_board, char *filename){
     }
 
 }
+//Move a pontuação na memória para o arquivo
 void score_to_file(scoreboard *sc_board, char *filename){
     FILE *file;
     file = fopen(filename, "w");
     for (int i = 0; sc_board->scores[i].nome[0] != '\0'; ++i) {
-        fprintf(file, "%s |%f|%f|%f",sc_board->scores[i].nome, sc_board->scores[i].ppm, sc_board->scores[i].accuracy, sc_board->scores[i].score);
+        fprintf(file, "%s |%f|%f|%f\n",sc_board->scores[i].nome, sc_board->scores[i].ppm, sc_board->scores[i].err, sc_board->scores[i].score);
     }
     fclose(file);
 }
-bool despedidas(){
-    return true;
-}//FIXME implement
 
 //Funções Draw
 void drawScore(scoreboard sc_board, double x, double y, char *title){//TODO corrigir nome variavel
@@ -225,7 +233,7 @@ void drawScore(scoreboard sc_board, double x, double y, char *title){//TODO corr
             tela_texto(x, y+15+(20.0f*(float)linha_y+1), 10, verde, etext);
         } else{
             char text[1500];
-            sprintf(text, "%i.%3s %05.2f %05.2f %05.2f",linha_y+1, sc_board.scores[linha_y].nome,  sc_board.scores[linha_y].ppm, sc_board.scores[linha_y].accuracy, sc_board.scores[linha_y].score);
+            sprintf(text, "%i.%3s %05.2f %05.2f %05.2f",linha_y+1, sc_board.scores[linha_y].nome,  sc_board.scores[linha_y].ppm, sc_board.scores[linha_y].err, sc_board.scores[linha_y].score);
             tela_texto(x, y+15+(20.0f*(float)linha_y+1), 10, verde, text);
         }
     }
@@ -242,7 +250,7 @@ void drawPalavra(palavra pal, int cort, int corc){
 void drawStatus(partida p){
     char score [200];
     tela_texto(WIDTH / 2, 160, 14, branco, "PPM | ERR | PTOS");
-    sprintf(score, "%.2lf | %.2lf | %.2lf", p.result.ppm, p.result.accuracy, p.result.score);
+    sprintf(score, "%.2lf | %.2lf | %.2lf", p.result.ppm, p.result.err, p.result.score);
     tela_texto(WIDTH / 2, 180, 14, branco, score);
     char nivel[100], grau[100];
 
@@ -268,11 +276,11 @@ void drawPlay(partida p){
         case load:{
             drawStatus(p);
             char t[20];
-            sprintf(t, "(%.0lf)", 5 - (relogio() - p.timers[2].init));
+            sprintf(t, "(%.0lf)", 5 - (relogio() - p.timers[1].init));
             tela_texto(WIDTH / 2, 220, 14, branco, t);
 
 
-            if(p.timers[3].clock == true){
+            if(p.timers[2].clock == true){
                 tela_texto(WIDTH/2, 200, 14, branco, "Prepare-se");
             }
             break;
@@ -286,7 +294,7 @@ void drawPlay(partida p){
         case partida_pause:{
             drawPlayng(p);
             drawStatus(p);
-            if(p.timers[3].clock == true) {
+            if(p.timers[2].clock == true) {
                 tela_texto(WIDTH / 2, 200, 14, branco, "Press space to continie");
             }
             break;
@@ -295,7 +303,7 @@ void drawPlay(partida p){
 
             drawStatus(p);
             tela_texto(WIDTH / 2, 250, 14, branco, "LOSE GAME");
-            if(p.timers[3].clock == true) {
+            if(p.timers[2].clock == true) {
                 tela_texto(WIDTH / 2, 200, 14, branco, "Press any key to continie");
             }
             break;
@@ -303,7 +311,6 @@ void drawPlay(partida p){
     }
 
 }
-
 //Draw Principal
 void bfDraw(Game g) {
     
@@ -333,7 +340,7 @@ void bfDraw(Game g) {
         break;
     }
     case quit:{
-        despedidas();
+
     }break;
     }
 }
@@ -343,10 +350,10 @@ void setBtnLevel(Game *Gp){
     free(Gp->btn_array);
     Gp->btn_array = malloc(4* sizeof(button));
     Gp->btn_array_lenght = 4;
-    Gp->btn_array[0] = init_button( WIDTH/2 - 52, 200, 104, 50, "Level 1", 12, 1, verde, verde, preto);
-    Gp->btn_array[1] = init_button( WIDTH/2 - 52, 300, 104, 50, "Level 2", 12, 2, amarelo, amarelo, preto);
-    Gp->btn_array[2] = init_button( WIDTH/2 - 52, 400, 104, 50, "Level 3", 12, 3, vermelho, vermelho, preto);
-    Gp->btn_array[3] = init_button( 48, 600, 104, 50, "Voltar", 12, -1, verde, verde, preto);
+    Gp->btn_array[0] = init_button( WIDTH/2 - 52, 200, 104, 50, "Level 1", 12, 1, verde, verde, branco);
+    Gp->btn_array[1] = init_button( WIDTH/2 - 52, 300, 104, 50, "Level 2", 12, 2, amarelo, amarelo, branco);
+    Gp->btn_array[2] = init_button( WIDTH/2 - 52, 400, 104, 50, "Level 3", 12, 3, vermelho, vermelho, branco);
+    Gp->btn_array[3] = init_button( 48, 600, 104, 50, "Voltar", 12, -1, verde, verde, branco);
 }
 void setBtnMenu(Game *Gp) {
     free(Gp->btn_array);
@@ -356,7 +363,43 @@ void setBtnMenu(Game *Gp) {
     Gp->btn_array[1] = init_button(WIDTH / 2 + 150, 500, 100, 50, "QUIT", 12, 4, vermelho, vermelho, branco);
 }
 
-//Funções inicialização de estrutura
+//Funções usadas para administrar os timestamps
+void initTimestamp(timestamp *t){
+    if(!(t->reset)) {
+
+        t->clock = false;
+        t->init = relogio();
+        t->reset = !(t->reset);
+    }
+}
+void verTimestamp(timestamp *t, double standby){
+    if(relogio()-t->init > standby){
+        t->clock = true;
+
+    }
+}
+void clockTimestamp(timestamp *t, double ciclo){
+    if(relogio()-t->init > ciclo){
+        t->clock = !(t->clock);
+        t->init = relogio();
+    }
+}
+void cron(timestamp *T, double *r){
+
+    if(T->clock == true){
+        //TODO observe aqui
+        *r = relogio()-T->init;
+
+    } else {
+
+        T->init = relogio()-*r;
+    }
+
+
+
+}
+
+//Funções inicialização de estruturas
 void init_game(Game *g){
     g->estado = menu;
     g->run = true;
@@ -376,13 +419,12 @@ void init_game(Game *g){
 void initPartida(partida *p){//Zera os valores da variavel partida//TODO revisar
     p->estado = load;
     p->result.nome[0] = '\0';
-    p->result.accuracy = 0.0;
+    p->result.err = 0.0;
     p->result.ppm = 0.0;
     p->result.score = 0;
     p->palavras = NULL;
-    p->timers = malloc(8*sizeof(timestamp));
-    initTimestamp(&p->timers[2]);
-    initTimestamp(&p->timers[3]);
+    p->timers = malloc(5*sizeof(timestamp));
+    initTimestamp(&p->timers[1]);
     p->grau = 0;
     p->set_p = -1;
     p->typ = 0;
@@ -497,49 +539,14 @@ palavra * loadPalavras(int grau, int nivel){
     return pal;
 }
 
-void initTimestamp(timestamp *t){
-    if(!(t->reset)) {
-
-        t->clock = false;
-        t->init = relogio();
-        t->reset = !(t->reset);
-    }
-}
-void verTimestamp(timestamp *t, double standby){
-    if(relogio()-t->init > standby){
-        t->clock = true;
-
-    }
-}
-void clockTimestamp(timestamp *t, double ciclo){
-    if(relogio()-t->init > ciclo){
-        t->clock = !(t->clock);
-        t->init = relogio();
-    }
-}
-
+//Move todos os caracteres uma posição para a esquerda e joga o primeiro caractere fora
 void shiftLeftString(char *string){
     for (int i = 0; string[i]!='\0' ; ++i) {
         string[i] = string[i+1];
     }
 }
-void cron(timestamp *T, timestamp *T2, double *r){
 
-    if(T->clock == true){
-
-        *r = relogio()-T->init;
-        T2->reset = false;
-        initTimestamp(T2);
-    } else {
-
-        T->init = relogio()-*r;
-    }
-
-
-
-}
-
-//Movimenta as palavras de forma inspirada na lei da gravitação
+//Movimenta as palavras de forma análoga a lei da gravitação (Se não houvesse velocidade máxima eles poderiam entrar em orbita)
 void fisicaPalavras(palavra *p, int grau){
     //FÍSICA
 
@@ -588,7 +595,6 @@ bool endRodada(partida  p){
             return false;
         }
     }
-    printf("Fim da rodada");
     return true;
 }
 bool gameOver(partida p){
@@ -603,7 +609,7 @@ bool gameOver(partida p){
 
 //Autoexplicativa
 void atualizaScore(partida *p){
-    p->result.accuracy = p->typ!=0?(100.0/p->typ)*p->w_typ:0;
+    p->result.err = p->typ!=0?(100.0/p->typ)*p->w_typ:0;
     p->result.score = p->typ - p->w_typ;//Pontução é o numero de letras corretas
     p->result.ppm = p->n_p/(p->time/60);
 }
@@ -619,14 +625,14 @@ int gravaScore(resultado_partida r, scoreboard *scb){
             for (int j = N_SCR-1; j > i; j--) {
                 scb->scores[j].ppm = scb->scores[j-1].ppm;
                 scb->scores[j].score = scb->scores[j-1].score;
-                scb->scores[j].accuracy = scb->scores[j-1].accuracy;
+                scb->scores[j].err = scb->scores[j-1].err;
                 stringtoarray(scb->scores[j].nome, scb->scores[j-1].nome, 3);
             }
 
             //Grava a nova pontuação
             scb->scores[i].ppm = r.ppm;
             scb->scores[i].score = r.score;
-            scb->scores[i].accuracy = r.accuracy;
+            scb->scores[i].err = r.err;
             stringtoarray(scb->scores[i].nome, "***", 3);
 
             return i;
@@ -682,14 +688,13 @@ void inputPartida(partida *p){
 void handlerPlay(partida *p){
 
     char teste[500];
-    initTimestamp(&p->timers[7]);
-    initTimestamp(&p->timers[6]);
+    initTimestamp(&p->timers[3]);
     if(p->estado!=playing){
-        p->timers[7].clock = false;
+        p->timers[3].clock = false;
     } else {
-        p->timers[7].clock = true;
+        p->timers[3].clock = true;
     }
-    cron(&p->timers[7], &p->timers[6], &p->time);
+    cron(&p->timers[3], &p->time);
     sprintf(teste, "%.4lf", p->time);
     tela_texto(50,50, 10, verde,teste);
 
@@ -699,33 +704,32 @@ void handlerPlay(partida *p){
             if(tecla == ' '){
                 p->estado = playing;
             }
-            initTimestamp(&p->timers[3]);
-            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false*/
+            initTimestamp(&p->timers[2]);
+            clockTimestamp(&p->timers[2], 0.75);//Alternando clock entre true e false*/
         break;}
         case playing: {
             //Isto vai ser grande
 
-            initTimestamp(&(p->timers[1]));
-            verTimestamp(&(p->timers[1]),4-(p->grau));
+            initTimestamp(&(p->timers[0]));
+            verTimestamp(&(p->timers[0]),4-(p->grau));
 
             fisicaPalavras(p->palavras, p->grau);
             inputPartida(p);
             //Aos poucos libera as palavras
-            if(p->ip < p->grau*6 && p->timers[1].clock == true){
+            if(p->ip < p->grau*6 && p->timers[0].clock == true){
                 p->palavras[p->ip].estado = active;
-                p->ip++;
-                p->timers[1].reset = false;
-                p->timers[1].clock = false;
+                p->ip++;//A próxima palavra da lista será ativada no próximo loop
+                p->timers[0].reset = false;
+                p->timers[0].clock = false;
             }
             if(endRodada(*p)){
 
                 atualizaScore(p);
-                p->timers[2].reset = false;
                 p->estado = load;
 
             }
             if(gameOver(*p)){
-                p->timers[2].reset = false;
+                p->timers[1].reset = false;
                 atualizaScore(p);
                 p->estado = partida_gameOver;
                 p->grau--;
@@ -734,34 +738,36 @@ void handlerPlay(partida *p){
             break;}
         case load: {
 
+            initTimestamp(&(p->timers[1]));
             initTimestamp(&(p->timers[2]));
-            initTimestamp(&(p->timers[3]));
-            verTimestamp(&p->timers[2], 5);//Após 5 segundos clock fica true
-            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false
+            verTimestamp(&p->timers[1], 5);//Após 5 segundos timers[1].clock = true
+            clockTimestamp(&p->timers[2], 0.75);//Alternando clock entre true e false em um ciclo de 0.75 segundos
 
             //Após 5 segundos a rodada inicia
-            if(p->timers[2].clock == true){
-                printf("Em load");
+            if(p->timers[1].clock == true){
                 p->grau<3?p->grau++:0;
-                free(p->palavras);
-                p->palavras = loadPalavras(p->grau, p->nivel);
-                p->ip = 0;
+
+
+                free(p->palavras);//Libera a lista anterior de palavras na memoria
+                p->palavras = loadPalavras(p->grau, p->nivel);//Gera a lista de palavras e devolve o ponteiro
+                p->ip = 0; //Identifica qual palavra da lista de ser ativada a seguir
                 p->estado = playing;
-                p->timers[5].reset = false;
-                p->timers[2].reset = false;
+
+                p->timers[1].reset = false;//Prepara para o próximo load (reset = false significa que será resetado)
             }
 
             break;}
         case partida_gameOver:{
-            initTimestamp(&p->timers[3]);
             initTimestamp(&p->timers[2]);
-            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false*/
-            verTimestamp(&p->timers[2], 2);//Após 5 segundos clock fica true
-            if(p->timers[2].clock) {
+            initTimestamp(&p->timers[1]);
+            clockTimestamp(&p->timers[2], 0.75);//Alternando clock entre true e false*/
+            verTimestamp(&p->timers[1], 2);//Após 2 segundos clock fica true
+            if(p->timers[1].clock) {
                 if (tecla != '\0') {
                     p->result.nome[0] = '*';//end
                     p->result.nome[0] = '*';
                     p->result.nome[0] = '*';
+                    free(p->timers);
                 }
             }
                 break;
@@ -829,6 +835,7 @@ void handlerGame(Game *Gp){//Game pointer, not Ganglank
             }
             else {
                 Gp->estado = menu;
+
                 setBtnMenu(Gp);
             }
 
@@ -844,7 +851,7 @@ void handlerGame(Game *Gp){//Game pointer, not Ganglank
                 else if(Gp->mouse_btn_on > 0){
                     Gp->estado = play;
 
-                    free(Gp->btn_array);
+
                     Gp->btn_array_lenght = 0;
                     Gp->partida1.nivel = Gp->mouse_btn_on;
 
