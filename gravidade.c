@@ -1,7 +1,6 @@
 
 #include "tela.h"
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
 
@@ -12,6 +11,7 @@
 
 
 void print_obj(obj o, int x, int y);
+
 // A função principal
 /*
 int main(void)
@@ -98,12 +98,11 @@ int main(void)
 // funções auxiliares
 // -------------------
 //
-void atualiza_obj(obj *o){
-    //if(o->velocidade.x + o->aceleracao.x < 10 && o->velocidade.x + o->aceleracao.x > -10){o->velocidade.x += o->aceleracao.x;}
-    //if(o->velocidade.y + o->aceleracao.y < 10  && o->velocidade.y + o->aceleracao.y > -10){o->velocidade.y += o->aceleracao.y;}
+void atualiza_obj(obj *o, int vmax){
+    if(o->velocidade.x + o->aceleracao.x < vmax && o->velocidade.x + o->aceleracao.x > -vmax){o->velocidade.x += o->aceleracao.x;}
+    if(o->velocidade.y + o->aceleracao.y < vmax  && o->velocidade.y + o->aceleracao.y > -vmax){o->velocidade.y += o->aceleracao.y;}
     
-    o->velocidade.y += o->aceleracao.y;
-    o->velocidade.x += o->aceleracao.x;
+
     
     o->posicao.x += o->velocidade.x;
     o->posicao.y += o->velocidade.y;
@@ -159,7 +158,7 @@ void grav_test(obj *o1, obj o2){
   //printf("%lf|%lf-", o2.posicao.x-o1->posicao.x, cos);
   o1->aceleracao.x += (cos*constG*pm/pd)/o1->massa;
   o1->aceleracao.y += (sen*constG*pm/pd)/o1->massa;
-};
+}
 
 vetor aleat_radius(int width, int height, float radius){ //Retorna um vetor com posições aleatorias dentro de um raio a partir do centro
 

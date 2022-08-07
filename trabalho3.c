@@ -15,6 +15,7 @@
 
 //Receberão as poisções do mouse
 float mouse_x, mouse_y;
+char tecla, tecla_buffer, tst;//
 
 //Enums -- Contribuem para legibilidade do código
 typedef enum {
@@ -60,7 +61,9 @@ typedef struct {
     bool reset;
 } timestamp;
 typedef struct {
-    int grau, nivel, ip, set_p;
+    int grau, nivel, ip, set_p;//Grau, nivel, indice palavras, setted_palavra
+    int typ, w_typ;//Types and Wrong types
+    double time;
     resultado_partida result;
     partida_estados estado;
     palavra *palavras;
@@ -89,12 +92,12 @@ bool despedidas();
 void bfDraw(Game );
 //O jogo conta com os estados, menu, quit, play e save_score
 
-    obj centro = {
-        {0,0},
-        {0,0},
-        {WIDTH/2, HEIGHT/2},
-        1000
-    };
+obj centro = {
+{0,0},
+{0,0},
+    {WIDTH/2, HEIGHT/2},
+    2000
+};
 
 //TESTES
 //Função auxiliar desenha uma grade para ajudar a posicionar a interface na tela
@@ -115,11 +118,20 @@ int main(){
 
 
     while (jogo.run) {
-        printf("%i -- %i\n", jogo.estado, jogo.partida1.estado);
+        //printf("%i -- %i\n", jogo.estado, jogo.partida1.estado);
 
         //Posições do mouse gravadas somente uma vez por loop
         mouse_x = tela_rato_x();
         mouse_y = tela_rato_y();
+        tecla_buffer = tst;
+        tst = tela_tecla();
+
+        //Feito com intuito de atrasar a leitura de varias vezes a mesma tecla
+        if( tst != tecla_buffer){
+            tecla = tst;
+        } else {
+            tecla = '\0';
+        }
 
         //Desenha circulo central
         tela_circulo(WIDTH/2, HEIGHT/2, 50, 0, branco, azul);
@@ -224,19 +236,41 @@ void drawScore(scoreboard sc_board, double x, double y_, char *title){//TODO cor
     tela_retangulo(x - 125, y_-10, x+125, y_+15+(20.0f*(float)y+1), 3, verde, transparente);
 }
 
-void drawPalavra(palavra pal){
+void drawPalavra(palavra pal, int cort, int corc){
     if(pal.estado == active){
-        tela_texto(pal.fisica.posicao.x, pal.fisica.posicao.y-10, 14, branco, pal.palavra);
-        tela_circulo(pal.fisica.posicao.x, pal.fisica.posicao.y, 5, 1, verde, verde);
+        tela_texto(pal.fisica.posicao.x, pal.fisica.posicao.y-10, 14, cort, pal.palavra);
+        tela_circulo(pal.fisica.posicao.x, pal.fisica.posicao.y, 5, 1, corc, corc);
+    }
+}
+
+void drawStatus(partida p){
+    char score [200];
+    tela_texto(WIDTH / 2, 160, 14, branco, "PPM | ERR | PTOS");
+    sprintf(score, "%.2lf | %.2lf | %.2lf", p.result.ppm, p.result.accuracy, p.result.score);
+    tela_texto(WIDTH / 2, 180, 14, branco, score);
+    char nivel[100], grau[100];
+
+    sprintf(grau,"GRAU %i", p.grau+1);
+    tela_texto(WIDTH / 2, 120, 14, branco, grau);
+
+    sprintf(nivel,"Nivel %i", p.nivel);
+    tela_texto(WIDTH / 2, 100, 14, branco, nivel);
+
+}
+void drawPlayng(partida p){
+    for(int i = 0; i<p.grau*6; i++){
+        if(i == p.set_p){
+            drawPalavra(p.palavras[i], amarelo, vermelho);
+        } else {
+            drawPalavra(p.palavras[i], verde, verde);
+        }
+
     }
 }
 void drawPlay(partida p){
     switch (p.estado) {
         case load:{
-            char score [200];
-            tela_texto(WIDTH / 2, 160, 14, branco, "PPM | ACC | PTOS");
-            sprintf(score, "%.2lf | %.2lf | %.2lf", p.result.ppm, p.result.accuracy, p.result.score);
-            tela_texto(WIDTH / 2, 180, 14, branco, score);
+            drawStatus(p);
             char t[20];
             sprintf(t, "(%.0lf)", 5 - (relogio() - p.timers[2].init));
             tela_texto(WIDTH / 2, 220, 14, branco, t);
@@ -250,15 +284,24 @@ void drawPlay(partida p){
         }
         case playing:{
 
-            for(int i = 0; i<p.grau*6; i++){
-                drawPalavra(p.palavras[i]);
-            }
+            drawPlayng(p);
             break;
         }
         case partida_pause:{
+            drawPlayng(p);
+            drawStatus(p);
+            if(p.timers[3].clock == true) {
+                tela_texto(WIDTH / 2, 200, 14, branco, "Press space to continie");
+            }
             break;
         }
         case partida_gameOver:{
+            drawPlayng(p);
+            drawStatus(p);
+            tela_texto(WIDTH / 2, 300, 14, branco, "LOSE GAME");
+            if(p.timers[3].clock == true) {
+                tela_texto(WIDTH / 2, 200, 14, branco, "Press any key to continie");
+            }
             break;
         }
     }
@@ -341,9 +384,13 @@ void initPartida(partida *p){//Zera os valores da variavel partida//TODO revisar
     p->result.ppm = 0.0;
     p->result.score = 0;
     p->palavras = NULL;
-    p->timers = malloc(6*sizeof(timestamp));
+    p->timers = malloc(7*sizeof(timestamp));
     initTimestamp(&p->timers[2]);
-    p->grau = 1;
+    initTimestamp(&p->timers[3]);
+    p->grau = 0;
+    p->set_p = -1;
+    p->typ = 0;
+    p->w_typ = 0;
 }
 
 //Retorna uma palavra aleatoria
@@ -437,7 +484,7 @@ void fisicaPalavras(palavra *p, int grau){
     for (int i = 0; i < grau*6; ++i) {
 
         if(p[i].estado == active) {
-            atualiza_obj(&(p[i].fisica));
+            atualiza_obj(&(p[i].fisica), grau*3);
             grav_test(&(p[i].fisica), centro);
 
 
@@ -471,51 +518,177 @@ void fisicaPalavras(palavra *p, int grau){
         }
     }
 }
+void shiftLeftString(char *string){
+    for (int i = 0; string[i]!='\0' ; ++i) {
+        string[i] = string[i+1];
+    }
+}
+void inputPartida(partida *p){
+
+    //printf("%c - %c - %c\n", tecla, tecla_buffer, tst);
+    //printf("%i - %i\n", p->typ, p->w_typ);
+    if(tecla == ' '){
+        //tela_fim();
+        p->estado = partida_pause;
+    } else if(tecla != '\n' && tecla != '\0'){
+        //printf("set_p %i --- %c\n", p->set_p, tecla);
+        p->typ++;
+        if(p->set_p == -1){
+
+            for (int i = 0; i < p->grau*6   ; ++i) {
+
+                if(p->palavras[i].estado == active && p->palavras[i].palavra[0] == tecla){
+
+                    p->set_p = i;
+                    break;
+                }
+            }
+        }
+        //Exclui a letra da palavra
+        if(p->set_p != -1 && p->palavras[p->set_p].estado == active){
+            if(p->palavras[p->set_p].palavra[0] == tecla) {
+                shiftLeftString(p->palavras[p->set_p].palavra);
+            } else {
+                p->w_typ++;
+            }
+            if(p->palavras[p->set_p].palavra[0] == '\0' || p->palavras[p->set_p].palavra[0] == '\n' ){
+                p->palavras[p->set_p].estado = dead;
+                p->set_p = -1;
+            }
+        }
+
+        if(p->set_p == -1){
+            p->w_typ++;
+        }
+    }
+}
+bool endRodada(partida  p){
+    for (int i = 0; i < p.grau*6; ++i) {
+        if(p.palavras[i].estado == active || p.palavras[i].estado == sleep){
+            return false;
+        }
+    }
+    printf("Fim da rodada");
+    return true;
+}
+bool gameOver(partida p){
+    for (int i = 0; i < p.grau*6; ++i) {
+        if(dist(p.palavras[i].fisica.posicao,centro.posicao) < 50 ){
+            return true;
+        }
+    }
+    return false;
+}
+void atualizaScore(partida *p){
+    p->result.accuracy = p->typ!=0?(100.0/p->typ)*p->w_typ:0;
+    p->result.score = p->typ - p->w_typ;//Pontução é o numero de letras corretas
+    p->result.ppm = p->typ/(p->time/60);
+}
+
+void cron(timestamp *T, timestamp *T2, double *r){
+    if(T->clock == true){
+
+        *r = relogio()-T->init+T2->init;
+        T2->reset = false;
+    } else {
+        T2->init = relogio()-T2->init;
+    }
+
+
+
+}
 void handlerPlay(partida *p){
+
+    char teste[500];
+    initTimestamp(&p->timers[2]);
+    initTimestamp(&p->timers[6]);
+    if(p->estado!=playing){
+        p->timers[2].clock = false;
+    } else {
+        p->timers[2].clock = true;
+    }
+    cron(&p->timers[2], &p->timers[6], &p->time);
+    double pause;
+    sprintf(teste, "%.4lf", p->time);
+    tela_texto(50,50, 10, verde,teste);
+
+
+
+
     switch (p->estado) {
 
         case partida_pause:{
-            tela_texto(23,23,23,branco,"AAAAA");
+            if(tecla == ' '){
+                p->estado = playing;
+            }
+            initTimestamp(&p->timers[3]);
+            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false*/
         break;}
         case playing: {
             //Isto vai ser grande
+
             initTimestamp(&(p->timers[1]));
             verTimestamp(&(p->timers[1]),4-(p->grau));
 
             fisicaPalavras(p->palavras, p->grau);
-
+            inputPartida(p);
+            //Aos poucos libera as palavras
             if(p->ip < p->grau*6 && p->timers[1].clock == true){
                 p->palavras[p->ip].estado = active;
                 p->ip++;
                 p->timers[1].reset = false;
                 p->timers[1].clock = false;
             }
+            if(endRodada(*p)){
 
+                atualizaScore(p);
+                p->timers[2].reset = false;
+                p->estado = load;
+
+            }
+            if(gameOver(*p)){
+                p->timers[2].reset = false;
+                atualizaScore(p);
+                p->estado = partida_gameOver;
+
+            }
             break;}
         case load: {
 
-
+            initTimestamp(&(p->timers[2]));
+            initTimestamp(&(p->timers[3]));
             verTimestamp(&p->timers[2], 5);//Após 5 segundos clock fica true
-            clockTimestamp(&p->timers[3], 1);//Alternando clock entre true e false
+            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false
 
             //Após 5 segundos a rodada inicia
             if(p->timers[2].clock == true){
+                p->grau<3?p->grau++:0;
                 free(p->palavras);
                 p->palavras = loadPalavras(p->grau, p->nivel);
                 p->ip = 0;
-                printf("%i",p->ip);
                 p->estado = playing;
+                p->timers[5].reset = false;
+                p->timers[2].reset = false;
             };
 
             break;}
         case partida_gameOver:{
+            initTimestamp(&p->timers[3]);
+            initTimestamp(&p->timers[2]);
+            clockTimestamp(&p->timers[3], 0.75);//Alternando clock entre true e false*/
+            verTimestamp(&p->timers[2], 2);//Após 5 segundos clock fica true
+            if(p->timers[2].clock) {
+                if (tecla != '\0') {
+                    p->result.nome[0] = 'e';//end
+                }
+            }
                 break;
         }
 
     }
 
-};
 
+};
 void handlerGame(Game *Gp){//Game pointer, not Ganglank
     switch (Gp->estado) {
         case menu: {

@@ -16,5 +16,6 @@ typedef struct {
 
 vetor aleat_radius(int width, int height, float radius);
 void grav_test(obj *o1, obj o2);
-void atualiza_obj(obj *o);
+void atualiza_obj(obj *o, int vmax);
+double dist(vetor v1,vetor v2);
 #endif
